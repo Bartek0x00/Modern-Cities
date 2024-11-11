@@ -4,8 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
-void main() => runApp(const MyApp());
+Future<void> main() async {
+  await SentryFlutter.init(
+    (options) {
+      options.tracesSampleRate = 1.0;
+      options.profilesSampleRate = 1.0;
+    },
+    appRunner: () => runApp(const MyApp()),
+  );
+}
 
 class Question extends StatefulWidget {
   final QuestionSet questionSet;
@@ -315,31 +324,41 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   Future<QuestionSet?> loadUserData() async {
-    final apiKey =
-        utf8.decode(base64.decode(const String.fromEnvironment('API_KEY')));
-    if (apiKey.isEmpty) {
+    try {
+      final apiKey = utf8
+          .decode(base64.decode(const String.fromEnvironment('GEMINI_KEY')));
+      if (apiKey.isEmpty) {
+        return null;
+      }
+
+      final chat = GenerativeModel(
+        model: 'gemini-1.5-pro',
+        apiKey: apiKey,
+        generationConfig: GenerationConfig(
+          temperature: 1.2,
+          topK: 30,
+          topP: 0.9,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json',
+        ),
+      ).startChat();
+
+      const prompt =
+          'generate a json (as a choice game about decision making of high tech futuristic cities) having only qs array that has q1, q2, ... (ordinal numbers) objects each separately having inside of itself field q - a hypotethical question, img - path to img showing this, a1, a2 - possible answers, aa1, aa2 - name of questions that will appear after given ans was chosen. Try to make the question relate to each other in a plot even go back to prev questions, no comments, no unnec nesting on final question give answer1 which leads to the first question and answer2 with "newstory" aa2 field';
+
+      final response = await chat.sendMessage(Content.text(prompt));
+
+      if (response.text == null || response.text!.isEmpty) {
+        return null;
+      }
+
+      final Map<String, dynamic> jsonString = jsonDecode(response.text!);
+
+      return QuestionSet.fromJson(jsonString);
+    } catch (e) {
+      print('Error: $e');
       return null;
     }
-
-    final chat = GenerativeModel(
-      model: 'gemini-1.5-pro',
-      apiKey: apiKey,
-      generationConfig: GenerationConfig(
-        temperature: 1,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-        responseMimeType: 'application/json',
-      ),
-    ).startChat();
-
-    const prompt =
-        'generate a json (as a choice game about decision making of high tech futuristic cities) having only qs array that has q1, q2, ... (ordinal numbers) objects each separately having inside of itself field q - a hypotethical question, img - path to img showing this, a1, a2 - possible answers, aa1, aa2 - name of questions that will appear after given ans was chosen. Try to make the question relate to each other in a plot even go back to prev questions, no comments, no unnec nesting on final question give answer1 which leads to the first question and answer2 with "newstory" aa2 field';
-
-    final response = await chat.sendMessage(Content.text(prompt));
-    final Map<String, dynamic> jsonString = jsonDecode(response.text!);
-
-    return QuestionSet.fromJson(jsonString);
   }
 
   @override

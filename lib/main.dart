@@ -1,24 +1,42 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:archive/archive.dart';
 
-Future<void> main() async {
-  await SentryFlutter.init(
-    (options) {
-      options.tracesSampleRate = 1.0;
-      options.profilesSampleRate = 1.0;
-    },
-    appRunner: () => runApp(const MyApp()),
-  );
-}
+void main() => runApp(const MyApp());
+
+ThemeData _darkTheme = ThemeData(
+  scaffoldBackgroundColor: const Color.fromARGB(0xff, 0x28, 0x28, 0x28),
+  cardColor: const Color.fromARGB(0xff, 0x28, 0x28, 0x38),
+  primaryColor: const Color.fromARGB(0xff, 0x28, 0x28, 0xbb),
+  textTheme: const TextTheme(
+    bodyMedium: TextStyle(
+      color: Color.fromARGB(0xff, 0xd4, 0xd4, 0xd4),
+    ),
+    bodySmall: TextStyle(
+      color: Color.fromARGB(0xff, 0xd4, 0xd4, 0xd4),
+    ),
+  ),
+);
+
+ThemeData _lightTheme = ThemeData(
+  scaffoldBackgroundColor: const Color.fromARGB(0xff, 0xf5, 0xf5, 0xf5),
+  cardColor: const Color.fromARGB(0xff, 0xc5, 0xc5, 0xf5),
+  primaryColor: const Color.fromARGB(0xff, 0x28, 0x28, 0xbb),
+  textTheme: const TextTheme(
+    bodyMedium: TextStyle(color: Color.fromARGB(0xff, 0x08, 0x08, 0x08)),
+    bodySmall: TextStyle(
+      color: Color.fromARGB(0xff, 0xd4, 0xd4, 0xd4),
+    ),
+  ),
+);
 
 class Question extends StatefulWidget {
   final QuestionSet questionSet;
-  final String questionKey;
+  final int questionKey;
 
   const Question({
     super.key,
@@ -32,11 +50,11 @@ class Question extends StatefulWidget {
 
 class _QuestionState extends State<Question> {
   QuestionData get currentQuestion =>
-      widget.questionSet.questions[widget.questionKey]!;
+      widget.questionSet.questions[widget.questionKey];
+  int get maxQuestion => widget.questionSet.questions.length;
   ScrollController scrollController = ScrollController();
 
-  bool _isFirstAnswerShown = false;
-  bool _isSecondAnswerShown = false;
+  List<bool> isAnswerShown = [false, false];
 
   @override
   void dispose() {
@@ -47,6 +65,23 @@ class _QuestionState extends State<Question> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(top: 16.0),
+        child: ElevatedButton(
+          onPressed: () => MyApp.of(context).toggleTheme(),
+          style: ButtonStyle(
+            backgroundColor:
+                WidgetStateProperty.all(Theme.of(context).primaryColor),
+          ),
+          child: Text(
+            "Change the colour",
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerTop,
       body: Center(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -59,14 +94,14 @@ class _QuestionState extends State<Question> {
                   maxHeight: constraints.maxHeight * 0.85,
                 ),
                 child: Card(
-                  color: Colors.grey[900],
+                  color: Theme.of(context).cardColor,
                   elevation: 8.0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                   child: ScrollbarTheme(
                     data: ScrollbarThemeData(
                       thumbColor: WidgetStateProperty.all(
-                          const Color.fromARGB(0xff, 0x28, 0x28, 0xbb)),
+                          Theme.of(context).primaryColor),
                     ),
                     child: Scrollbar(
                       controller: scrollController,
@@ -90,9 +125,11 @@ class _QuestionState extends State<Question> {
                               _buildImage(constraints),
                               _buildQuestionText(constraints),
                               SizedBox(height: constraints.maxHeight * 0.03),
-                              _buildAnswer1Button(constraints),
+                              _buildAnswerButton(
+                                  constraints, currentQuestion.answer1, 0),
                               SizedBox(height: constraints.maxHeight * 0.03),
-                              _buildAnswer2Button(constraints),
+                              _buildAnswerButton(
+                                  constraints, currentQuestion.answer2, 1),
                             ],
                           ),
                         ),
@@ -120,7 +157,7 @@ class _QuestionState extends State<Question> {
             width: constraints.maxHeight * 0.1,
             height: constraints.maxHeight * 0.1,
             child: CircularProgressIndicator(
-              color: const Color.fromARGB(0xff, 0x28, 0x28, 0xbb),
+              color: Theme.of(context).primaryColor,
               strokeWidth: constraints.maxHeight * 0.01,
             ),
           )),
@@ -129,7 +166,7 @@ class _QuestionState extends State<Question> {
             width: constraints.maxHeight * 0.1,
             height: constraints.maxHeight * 0.1,
             child: CircularProgressIndicator(
-              color: const Color.fromARGB(0xff, 0x28, 0x28, 0xbb),
+              color: Theme.of(context).primaryColor,
               strokeWidth: constraints.maxHeight * 0.01,
             ),
           )),
@@ -143,7 +180,7 @@ class _QuestionState extends State<Question> {
         () {
       if (mounted) {
         setState(() {
-          _isFirstAnswerShown = true;
+          isAnswerShown[0] = true;
         });
       }
     });
@@ -152,7 +189,8 @@ class _QuestionState extends State<Question> {
           TypewriterAnimatedText(
             currentQuestion.question,
             textStyle: TextStyle(
-                fontSize: constraints.maxHeight * 0.03, color: Colors.white),
+              fontSize: constraints.maxHeight * 0.03,
+            ),
             textAlign: TextAlign.center,
             speed: const Duration(milliseconds: 45),
           ),
@@ -161,22 +199,24 @@ class _QuestionState extends State<Question> {
         displayFullTextOnTap: true,
         onTap: () {
           setState(() {
-            _isFirstAnswerShown = true;
+            isAnswerShown[0] = true;
           });
         });
   }
 
   void _navigateToNextQuestion(
-      BuildContext context, String nextQuestionKey, bool isUp) {
+      BuildContext context, int nextQuestionKey, bool isUp) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) {
-          if (nextQuestionKey == 'newstory') {
+          if (nextQuestionKey == -1) {
             return const HomeScreen();
           } else {
             return Question(
               questionSet: widget.questionSet,
-              questionKey: nextQuestionKey,
+              questionKey: (nextQuestionKey < maxQuestion)
+                  ? nextQuestionKey
+                  : (maxQuestion - 1),
               key: ValueKey(nextQuestionKey),
             );
           }
@@ -195,61 +235,41 @@ class _QuestionState extends State<Question> {
     );
   }
 
-  Widget _buildAnswer1Button(BoxConstraints constraints) {
-    if (_isFirstAnswerShown) {
+  Widget _buildAnswerButton(
+      BoxConstraints constraints, String answer, int num) {
+    if (isAnswerShown[num] && answer.isNotEmpty) {
       Future.delayed(
           Duration(milliseconds: 45 * currentQuestion.answer1.length), () {
-        if (mounted) {
+        if (mounted && num == 0) {
           setState(() {
-            _isSecondAnswerShown = true;
+            isAnswerShown[1] = true;
           });
         }
       });
       return ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(0xff, 0x28, 0x28, 0xbb),
-          foregroundColor: Colors.white,
+        style: ButtonStyle(
+          backgroundColor:
+              WidgetStateProperty.all(Theme.of(context).primaryColor),
         ),
         onPressed: () {
-          _navigateToNextQuestion(context, currentQuestion.afterAnswer1, true);
+          _navigateToNextQuestion(
+              context,
+              (num == 1)
+                  ? currentQuestion.afterAnswer2
+                  : currentQuestion.afterAnswer1,
+              true);
         },
         child: IgnorePointer(
           child: AnimatedTextKit(
             animatedTexts: [
               TypewriterAnimatedText(
-                currentQuestion.answer1,
-                textStyle: TextStyle(fontSize: constraints.maxHeight * 0.02),
+                answer,
+                textStyle: TextStyle(
+                  fontSize: constraints.maxHeight * 0.02,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
                 textAlign: TextAlign.center,
                 speed: const Duration(milliseconds: 45),
-              ),
-            ],
-            isRepeatingAnimation: false,
-          ),
-        ),
-      );
-    } else {
-      return Container();
-    }
-  }
-
-  Widget _buildAnswer2Button(BoxConstraints constraints) {
-    if (_isSecondAnswerShown) {
-      return ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(0xff, 0x28, 0x28, 0xbb),
-          foregroundColor: Colors.white,
-        ),
-        onPressed: () {
-          _navigateToNextQuestion(context, currentQuestion.afterAnswer2, false);
-        },
-        child: IgnorePointer(
-          child: AnimatedTextKit(
-            animatedTexts: [
-              TypewriterAnimatedText(
-                currentQuestion.answer2,
-                textStyle: TextStyle(fontSize: constraints.maxHeight * 0.02),
-                textAlign: TextAlign.center,
-                speed: const Duration(milliseconds: 50),
               ),
             ],
             isRepeatingAnimation: false,
@@ -267,8 +287,8 @@ class QuestionData {
   final String image;
   final String answer1;
   final String answer2;
-  final String afterAnswer1;
-  final String afterAnswer2;
+  final int afterAnswer1;
+  final int afterAnswer2;
 
   const QuestionData(
       {required this.question,
@@ -282,83 +302,82 @@ class QuestionData {
     return QuestionData(
       question: json['q'] ?? 'Question_placeholder',
       image: json['img'] ?? '',
-      answer1: json['a1'] ?? 'Answer1_placeholder',
-      answer2: json['a2'] ?? 'Answer2_placeholder',
-      afterAnswer1: json['aa1'] ?? 'newstory',
-      afterAnswer2: json['aa2'] ?? 'newstory',
+      answer1: json['a1'] ?? '',
+      answer2: json['a2'] ?? '',
+      afterAnswer1: json['aa1'] ?? -1,
+      afterAnswer2: json['aa2'] ?? -1,
     );
   }
 }
 
 class QuestionSet {
-  final Map<String, QuestionData> questions;
+  final List<QuestionData> questions;
   QuestionSet({required this.questions});
 
-  factory QuestionSet.fromJson(Map<String, dynamic> json) {
-    final List<dynamic> qsList = json['qs'];
-    final questions = <String, QuestionData>{};
-
-    for (var questionMap in qsList) {
-      questionMap.forEach((key, value) {
-        questions[key] = QuestionData.fromJson(value);
-      });
+  factory QuestionSet.fromJson(List<dynamic> json) {
+    final questions = <QuestionData>[];
+    DateTime currentTime = DateTime.now();
+    int i = 2 * (currentTime.minute % 8) + (currentTime.second ~/ 30);
+    for (int j = 0; j < json[i].length; j++) {
+      questions.add(QuestionData.fromJson(json[i][j]));
     }
     return QuestionSet(questions: questions);
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+
+  // ignore: library_private_types_in_public_api
+  static _MyAppState of(BuildContext context) =>
+      context.findAncestorStateOfType<_MyAppState>()!;
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      themeMode: ThemeMode.dark,
-      darkTheme: ThemeData.dark(),
+      themeMode: _themeMode,
+      theme: _lightTheme,
+      darkTheme: _darkTheme,
       home: const HomeScreen(),
     );
   }
+
+  void toggleTheme() {
+    ThemeMode next;
+    if (_themeMode == ThemeMode.light) {
+      next = ThemeMode.dark;
+    } else {
+      next = ThemeMode.light;
+    }
+
+    setState(() {
+      _themeMode = next;
+    });
+  }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+
   Future<QuestionSet?> loadUserData() async {
-    try {
-      final apiKey = utf8
-          .decode(base64.decode(const String.fromEnvironment('GEMINI_KEY')));
-      if (apiKey.isEmpty) {
-        return null;
-      }
+    final byteData = await rootBundle.load('assets/data.json.gz');
+    List<int> compressedBytes = byteData.buffer.asUint8List();
+    String jsonString = utf8.decode(GZipDecoder().decodeBytes(compressedBytes));
 
-      final chat = GenerativeModel(
-        model: 'gemini-1.5-pro',
-        apiKey: apiKey,
-        generationConfig: GenerationConfig(
-          temperature: 1.2,
-          topK: 30,
-          topP: 0.9,
-          maxOutputTokens: 8192,
-          responseMimeType: 'application/json',
-        ),
-      ).startChat();
-
-      const prompt =
-          'generate a json (as a choice game about decision making of high tech futuristic cities) having only qs array that has q1, q2, ... (ordinal numbers) objects each separately having inside of itself field q - a hypotethical question, img - path to img showing this, a1, a2 - possible answers, aa1, aa2 - name of questions that will appear after given ans was chosen. Try to make the question relate to each other in a plot even go back to prev questions, no comments, no unnec nesting on final question give answer1 which leads to the first question and answer2 with "newstory" aa2 field';
-
-      final response = await chat.sendMessage(Content.text(prompt));
-
-      if (response.text == null || response.text!.isEmpty) {
-        return null;
-      }
-
-      final Map<String, dynamic> jsonString = jsonDecode(response.text!);
-
-      return QuestionSet.fromJson(jsonString);
-    } catch (e) {
-      print('Error: $e');
-      return null;
-    }
+    return QuestionSet.fromJson(json.decode(jsonString));
   }
 
   @override
@@ -367,28 +386,35 @@ class HomeScreen extends StatelessWidget {
       future: loadUserData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
+          return Scaffold(
             body: Center(
               child: Column(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(
-                    color: Color.fromARGB(0xff, 0x28, 0x28, 0xbb),
+                  Text(
+                    "Generating content...",
+                    style: TextStyle(
+                      fontSize: 32.0,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
                   ),
-                  Text("Generating a story"),
                 ],
               ),
             ),
           );
         } else if (snapshot.hasData) {
           final questionSet = snapshot.data!;
-          final questionKey = questionSet.questions.keys.first;
 
           return Question(
             questionSet: questionSet,
-            questionKey: questionKey,
+            questionKey: 0,
           );
         } else {
-          return Text('Error: ${snapshot.error}');
+          return Scaffold(
+            body: Center(
+                child: Text('Error: ${snapshot.error ?? 'Unknown error'}')),
+          );
         }
       },
     );

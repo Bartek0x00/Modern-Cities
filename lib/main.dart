@@ -65,79 +65,86 @@ class _QuestionState extends State<Question> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(top: 16.0),
-        child: ElevatedButton(
-          onPressed: () => MyApp.of(context).toggleTheme(),
-          style: ButtonStyle(
-            backgroundColor:
-                WidgetStateProperty.all(Theme.of(context).primaryColor),
-          ),
-          child: Text(
-            "Change the colour",
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodySmall?.color,
-            ),
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerTop,
       body: Center(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return SizedBox(
-              width: MediaQuery.of(context).size.width > 800
-                  ? 640
-                  : constraints.maxWidth * 0.8,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: constraints.maxHeight * 0.85,
-                ),
-                child: Card(
-                  color: Theme.of(context).cardColor,
-                  elevation: 8.0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  child: ScrollbarTheme(
-                    data: ScrollbarThemeData(
-                      thumbColor: WidgetStateProperty.all(
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(constraints.maxHeight * 0.02),
+                  child: ElevatedButton(
+                    onPressed: () => MyApp.of(context).toggleTheme(),
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.all(
                           Theme.of(context).primaryColor),
                     ),
-                    child: Scrollbar(
-                      controller: scrollController,
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        controller: scrollController,
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            left: (constraints.maxWidth > 800)
-                                ? 50
-                                : constraints.maxWidth * 0.05,
-                            right: (constraints.maxWidth > 800)
-                                ? 50
-                                : constraints.maxWidth * 0.05,
-                            bottom: constraints.maxHeight * 0.03,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildImage(constraints),
-                              _buildQuestionText(constraints),
-                              SizedBox(height: constraints.maxHeight * 0.03),
-                              _buildAnswerButton(
-                                  constraints, currentQuestion.answer1, 0),
-                              SizedBox(height: constraints.maxHeight * 0.03),
-                              _buildAnswerButton(
-                                  constraints, currentQuestion.answer2, 1),
-                            ],
+                    child: Text(
+                      "Change the colour",
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: MediaQuery.of(context).size.width > 800
+                      ? 640
+                      : constraints.maxWidth * 0.8,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: constraints.maxHeight * 0.85,
+                    ),
+                    child: Card(
+                      color: Theme.of(context).cardColor,
+                      elevation: 8.0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      child: ScrollbarTheme(
+                        data: ScrollbarThemeData(
+                          thumbColor: WidgetStateProperty.all(
+                              Theme.of(context).primaryColor),
+                        ),
+                        child: Scrollbar(
+                          controller: scrollController,
+                          thumbVisibility: true,
+                          child: SingleChildScrollView(
+                            controller: scrollController,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: (constraints.maxWidth > 800)
+                                    ? 50
+                                    : constraints.maxWidth * 0.05,
+                                right: (constraints.maxWidth > 800)
+                                    ? 50
+                                    : constraints.maxWidth * 0.05,
+                                bottom: constraints.maxHeight * 0.03,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildImage(constraints),
+                                  _buildQuestionText(constraints),
+                                  SizedBox(
+                                      height: constraints.maxHeight * 0.03),
+                                  _buildAnswerButton(
+                                      constraints, currentQuestion.answer1, 0),
+                                  SizedBox(
+                                      height: constraints.maxHeight * 0.03),
+                                  _buildAnswerButton(
+                                      constraints, currentQuestion.answer2, 1),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             );
           },
         ),
@@ -317,7 +324,8 @@ class QuestionSet {
   factory QuestionSet.fromJson(List<dynamic> json) {
     final questions = <QuestionData>[];
     DateTime currentTime = DateTime.now();
-    int i = 2 * (currentTime.minute % 8) + (currentTime.second ~/ 30);
+    //int i = 2 * (currentTime.minute % 8) + (currentTime.second ~/ 30);
+    int i = 0;
     for (int j = 0; j < json[i].length; j++) {
       questions.add(QuestionData.fromJson(json[i][j]));
     }
@@ -371,9 +379,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   Future<QuestionSet?> loadUserData() async {
-    final byteData = await rootBundle.load('assets/data.json.gz');
+    final byteData = await rootBundle.load('assets/data_mini.json.gz');
     List<int> compressedBytes = byteData.buffer.asUint8List();
     String jsonString = utf8.decode(GZipDecoder().decodeBytes(compressedBytes));
 

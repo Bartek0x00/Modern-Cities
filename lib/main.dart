@@ -158,7 +158,7 @@ class _QuestionState extends State<Question> {
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
         child: CachedNetworkImage(
-          imageUrl: "https://raw.githubusercontent.com/Bartek0x00/Modern-Cities/main/assets/images/{currentQuestion.image}",
+          imageUrl: "https://raw.githubusercontent.com/Bartek0x00/Modern-Cities/main/assets/images/${currentQuestion.image}",
           placeholder: (context, url) => Center(
               child: SizedBox(
             width: constraints.maxHeight * 0.1,

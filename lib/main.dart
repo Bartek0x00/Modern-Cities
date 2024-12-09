@@ -153,31 +153,36 @@ class _QuestionState extends State<Question> {
   }
 
   Widget _buildImage(BoxConstraints constraints) {
-    return SizedBox(
-      height: constraints.maxHeight * 0.4,
+    return Padding(
+      padding: EdgeInsets.only(top: constraints.maxHeight * 0.03, bottom: constraints.maxHeight * 0.03),
       child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.circular(16.0),
         child: CachedNetworkImage(
-          imageUrl: "https://raw.githubusercontent.com/Bartek0x00/Modern-Cities/main/assets/images/${currentQuestion.image}",
-          placeholder: (context, url) => Center(
-              child: SizedBox(
-            width: constraints.maxHeight * 0.1,
-            height: constraints.maxHeight * 0.1,
-            child: CircularProgressIndicator(
-              color: Theme.of(context).primaryColor,
-              strokeWidth: constraints.maxHeight * 0.01,
-            ),
-          )),
-          errorWidget: (context, url, error) => Center(
-              child: SizedBox(
-            width: constraints.maxHeight * 0.1,
-            height: constraints.maxHeight * 0.1,
-            child: CircularProgressIndicator(
-              color: Theme.of(context).primaryColor,
-              strokeWidth: constraints.maxHeight * 0.01,
-            ),
-          )),
-        ),
+            imageUrl: "https://raw.githubusercontent.com/Bartek0x00/Modern-Cities/main/assets/images/${currentQuestion.image}",
+            placeholder: (context, url) => Center(
+                child: SizedBox(
+              width: constraints.maxHeight * 0.1,
+              height: constraints.maxHeight * 0.1,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+                strokeWidth: constraints.maxHeight * 0.01,
+              ),
+            )),
+            width: (constraints.maxWidth > 800) ? 600 : constraints.maxWidth * 0.65,
+            height: constraints.maxHeight * 0.45,
+            fit: BoxFit.cover,
+            fadeInDuration: const Duration(milliseconds: 250),
+            fadeOutDuration: const Duration(milliseconds: 50),
+            errorWidget: (context, url, error) => Center(
+                child: SizedBox(
+              width: constraints.maxHeight * 0.1,
+              height: constraints.maxHeight * 0.1,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+                strokeWidth: constraints.maxHeight * 0.01,
+              ),
+            )),
+          ),
       ),
     );
   }

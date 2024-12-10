@@ -132,7 +132,7 @@ class _QuestionState extends State<Question> {
                                   _buildAnswerButton(
                                       constraints, currentQuestion.answer1, 0),
                                   SizedBox(
-                                      height: constraints.maxHeight * 0.03),
+                                      height: constraints.maxHeight * 0.02),
                                   _buildAnswerButton(
                                       constraints, currentQuestion.answer2, 1),
                                 ],
@@ -158,7 +158,7 @@ class _QuestionState extends State<Question> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16.0),
         child: CachedNetworkImage(
-            imageUrl: "https://raw.githubusercontent.com/Bartek0x00/Modern-Cities/main/assets/images/${currentQuestion.image}",
+            imageUrl: "https://raw.githubusercontent.com/Bartek0x00/Modern-Cities/main/assets/images/${currentQuestion.image}.png",
             placeholder: (context, url) => Center(
                 child: SizedBox(
               width: constraints.maxHeight * 0.1,
@@ -169,7 +169,7 @@ class _QuestionState extends State<Question> {
               ),
             )),
             width: (constraints.maxWidth > 800) ? 600 : constraints.maxWidth * 0.65,
-            height: constraints.maxHeight * 0.45,
+            height: constraints.maxHeight * 0.40,
             fit: BoxFit.cover,
             fadeInDuration: const Duration(milliseconds: 250),
             fadeOutDuration: const Duration(milliseconds: 50),
@@ -329,8 +329,7 @@ class QuestionSet {
   factory QuestionSet.fromJson(List<dynamic> json) {
     final questions = <QuestionData>[];
     DateTime currentTime = DateTime.now();
-    //int i = 2 * (currentTime.minute % 8) + (currentTime.second ~/ 30);
-    int i = 0;
+    int i = (2 * (currentTime.minute % 8) + (currentTime.second ~/ 30)) % 4;
     for (int j = 0; j < json[i].length; j++) {
       questions.add(QuestionData.fromJson(json[i][j]));
     }

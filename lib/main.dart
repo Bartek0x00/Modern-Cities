@@ -202,6 +202,7 @@ class _QuestionState extends State<Question> {
             currentQuestion.question,
             textStyle: TextStyle(
               fontSize: constraints.maxHeight * 0.03,
+              height: constraints.maxHeight * 0.0013,
             ),
             textAlign: TextAlign.center,
             speed: const Duration(milliseconds: 45),
@@ -329,7 +330,7 @@ class QuestionSet {
   factory QuestionSet.fromJson(List<dynamic> json) {
     final questions = <QuestionData>[];
     DateTime currentTime = DateTime.now();
-    int i = (2 * (currentTime.minute % 8) + (currentTime.second ~/ 30)) % 4;
+    int i = 2 * (currentTime.minute % (json.length ~/ 2)) + (currentTime.second ~/ 30);
     for (int j = 0; j < json[i].length; j++) {
       questions.add(QuestionData.fromJson(json[i][j]));
     }
